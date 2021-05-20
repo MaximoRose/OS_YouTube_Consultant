@@ -1,4 +1,4 @@
-# Classe de traitement des fichiers json pour en faire des Listes de chaines ou des listes de videos
+# Classe de traitement des fichiers json pour en faire des Listes de chaines YT ou des listes de videos YT
 
 import json
 # importer les librairies pour travailler sur les dossiers et fichiers // source : https://stackoverflow.com/questions/3207219/how-do-i-list-all-files-of-a-directory
@@ -14,15 +14,15 @@ import random
 import isodate
 
 # Transforme une colonne de listes en colonne d'une seule dimension avec toutes les valeurs
-# Permet de faire des stats en volume d'occurences rapidement.
+# Permet de faire des stats en volume d'occurences d'un tag de vidéo ou de chaîne rapidement.
 # Thanks : https://towardsdatascience.com/dealing-with-list-values-in-pandas-dataframes-a177e534f173
 def listcol_to_1dcol(series) :
     return pd.Series(x for _list in series for x in _list)
 
 
-# ----------------------------------------------------------
-# Objet DataSets associe a ma fonction de requetage Youtube
-# ----------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------
+# Objet DataSets associé a ma fonction de requetage Youtube qui définit le format des fichiers .json qu'on exploite
+# -----------------------------------------------------------------------------------------------------------------
 class mb_ds :
 
     def __init__(self) :
@@ -30,14 +30,13 @@ class mb_ds :
         self.datachaines = None
         self.datavideos = None
 
-    # ---------------------------------------------------
-    # Load Files in memory
-    # ---------------------------------------------------
+    # --------------------------------------------------------------------------------------
+    # Load Files in memory / crée un dataframe contenant les fichiers .json mis bout-à-bout
+    # --------------------------------------------------------------------------------------
     def get_files_dt(self, folder) :
         myfolder = folder
         #Recupere la liste des fichiers dans le dossier folder 
         onlyfiles = [f for f in listdir(myfolder) if isfile(join(myfolder, f))]
-        # print(onlyfiles)
 
         data_set = []
         data = None
@@ -55,11 +54,12 @@ class mb_ds :
 
         return
 
-    # --------------------------------------------------------------------------------------
+    # --------------------------------------------------------------------------------------------------------------------
     # Load full data in two dataFrames : One for stats by channel / One for stats by videos
-    # --------------------------------------------------------------------------------------
+    # Crée deux dataframes au format plus exploitables : Un contient les stats des chaînes, l'autre de toutes les vidéos
+    # --------------------------------------------------------------------------------------------------------------------
     def get_full_data(self):
-        # Puisque veut faire des data frame, il va falloir que je reagrege les donnees des videos sous la forme d'une seule ligne comme dans un tableau Excel
+        # Puisque veut faire des dataframes, il va falloir que je reagrege les donnees des videos sous la forme d'une seule ligne comme dans un tableau Excel
         dataset_chaines = []
         dataset_videos = []
         cnt = 0
@@ -69,7 +69,7 @@ class mb_ds :
                 yt_associatedVideosData = None
                 yt_channelName = ''
                 cnt += 1
-                # J'imagine que la fonction pop est mieux pour la portabilite du code, mais les elements que je recupere formellement sont ceux que j'ai defini moi meme dans les modules Python
+                # J'imagine que la fonction pop est mieux pour la portabilite du code, mais ballek
                 try :
                     dateRqt = datachaine['dateRequete']
                 except KeyError :
@@ -102,7 +102,7 @@ class mb_ds :
                     try :
                         yt_country = channeldata[1]['channel_info']['country']
                     except KeyError :
-                        # En cas de doute, on set la chaine en FR
+                        # En cas de doute, on set la chaine en FR - à modifier en Unknown à l'avenir
                         yt_country = 'FR'
                     try :
                         yt_globalChannelStats = channeldata[1]['channel_info']['statistics']
@@ -112,14 +112,12 @@ class mb_ds :
                         yt_channel_categories = channeldata[1]['channel_info']['channelcategories']
                     except KeyError :
                         yt_channel_categories = None
-                        # yt_channel_categories = []
                     try :
                         yt_associatedVideosData = channeldata[1]['video_data']
                     except KeyError :
                         yt_associatedVideosData is None
 
                     if yt_globalChannelStats is not None :
-                            # Pour l'instant on ne prend pas la country
                             try :
                                 yt_vuesChaines = int(yt_globalChannelStats['viewCount'])
                             except KeyError :
@@ -135,6 +133,7 @@ class mb_ds :
                             # 21-3-13 : Ajout de country apres date creation chaine / Avant vue chaine
                             dataset_chaines.append([dateRqt, secteurOrga, secteurType, yt_channelName, yt_dateCreationChaine, yt_country, yt_channel_categories, yt_vuesChaines, yt_abonnes, yt_vidcount])
 
+                    # Si la chaîne dispose bien de vidéos, on va récupérer leurs stats pour les intégrer au dataframe attendu dédié
                     if yt_associatedVideosData is not None :
                         try :
                             sorted_vids = sorted(yt_associatedVideosData.items(), key = lambda item: int(item[1]['viewCount']), reverse = True)
@@ -149,8 +148,6 @@ class mb_ds :
                                 vid_title = 'Unknown'
                             try :
                                 video_publishedAt = vid[1]['publishedAt']
-                                # video_publishedAt = video_publishedAt[0:chaine_publishedAt.find('T')]
-                                # vid_datepub = datetime.date(int(video_publishedAt[0:4]), int(video_publishedAt[5:7]), int(video_publishedAt[8:10]))
                                 # 21-3-12 :
                                 vid_datepub = datetime.datetime(int(video_publishedAt[0:4]), int(video_publishedAt[5:7]), int(video_publishedAt[8:10]), int(video_publishedAt[11:13]), int(video_publishedAt[14:16]), int(video_publishedAt[14:16]))
 
@@ -206,7 +203,7 @@ class mb_ds :
         return df_video, df_chaine
 
     # --------------------------------------------------------------------------------------
-    # Ajoute la moyenne de vues des videos d'une chaine (max=50) au dataFrame des chaine
+    # Retourne un dataframe de chaînes disposant de la moyenne des vues par vidéos 
     # --------------------------------------------------------------------------------------
     def get_df_chaine_mv(self, datemin = datetime.datetime(1970,1,1, 0, 0, 0), datemax = datetime.datetime(2100, 1, 1, 23, 59, 59), top=0) :
         # Puisque veut faire des data frame, il va falloir que je reagrege les donnees des videos sous la forme d'une seule ligne comme dans un tableau Excel
@@ -225,9 +222,9 @@ class mb_ds :
 
 
 
-    # --------------------------------------------------------------------------------------
-    # Retourne la moyenne de vues des videos d'une chaine (max=50) au dataFrame des chaine
-    # --------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    # Retourne la moyenne de vues des videos d'une chaine passée en paramètre. On peut aussi définir des critères de dates de début et de date de fin
+    # ------------------------------------------------------------------------------------------------------------------------------------------------------------------
     # get mean views of channel
     # Possibilite de borner sur une periode en date
     # Possibilite de ne prendre que le top
@@ -249,44 +246,10 @@ class mb_ds :
             meanV = df_chan_datemax['vuesVideo'].mean()
         return meanV
 
-    
-    # --------------------------------------------------------------------------------------
-    # Ajoute au dataFrame chaine le taux de conversion = nb. abonnes / nb. vue moyennes
-    # --------------------------------------------------------------------------------------
-    # ajouter le taux de conversion de la chaine 
-    # A m'appeler qu'une fois qu'on a le mean evidemment
-    # Taux de conversion = indicateur perso :
-    # Nombre de vues moyennes / nombre d'abonnes
-    # TODO : retourner un dataframe 'chaine, secteur, nbabonne, nbvues, nbvideos, tc'
-    # def get_df_chaine_mv_tc(self) :
-    #     # Puisque veut faire des data frame, il va falloir que je reagrege les donnees des videos sous la forme d'une seule ligne comme dans un tableau Excel
-    #     ds_chaine_mvtc = []
 
-    #     for ind in self.datachaines.index :
-    #         chaine = self.datachaines['chaine'][ind]
-    #         v_mv = self.datachaines['video_mv'][ind]
-    #         n_ab = self.datachaines['abonnesChaine'][ind]
-
-    #         if not math.isnan(v_mv) :
-    #             if n_ab != 0 :
-    #                 tc = int(v_mv)/n_ab
-    #             else :  
-    #                 tc = 0
-    #         else :
-    #             tc = 0
-
-    #         ds_chaine_mvtc.append([self.datachaines['secteur'][ind], self.datachaines['structure'][ind], chaine, self.datachaines['vuesChaine'][ind], self.datachaines['abonnesChaine'][ind], self.datachaines['nbVideosChaine'][ind], tc])
-
-    #     df_chaine = pd.DataFrame(ds_chaine_mvtc, columns=['secteur', 'structure', 'chaine', 'vuesChaine', 'abonnesChaine', 'nbVideosChaine', 'tauxconv'])
-
-    #     # new_df = self.datachaines.join(df_chaine.set_index('chaine'), on='chaine')
-    #     # self.datachaines = new_df
-    #     return df_chaine
-
-
-    # ----------------------------------------------------------------------------------------------------
-    # Retourne la moyenne de vues des videos d'une chaine (max=50) ou d'un secteur sur le mois d'une date
-    # ----------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------------------------------------------------
+    # Retourne la moyenne de vues des videos d'une chaine, d'un secteur ou d'une structure sur le mois d'une date donnée
+    # -------------------------------------------------------------------------------------------------------------------
     # fonction qui retourne la mean value d'un secteur ou d'une chaine sur un mois
     def vid_month_meanview(self, secteur='', channel='', structure='', isnot=False, date=datetime.datetime.now, wo_struct = '', top=0) :
         meanV = 0
@@ -359,6 +322,7 @@ class mb_ds :
 
     # ----------------------------------------------------------------------------------------------------
     # Liste des videos postees par un secteur sur un mois
+    # Retourne un dataframe { chaine ; nombre de vidéos postées sur le mois }
     # ----------------------------------------------------------------------------------------------------
     def vid_secteur_mois (self, secteur='', date=datetime.datetime.now,  wo_struct = '', structure = '') :
         dc = self.datachaines
@@ -379,10 +343,9 @@ class mb_ds :
         return df_nbvchaine
 
     # --------------------------------------------------------------------------------------
-    # Ajoute le taux de like d'une video = nbVues / nblikes
+    # Retourne un dataframe de vidéos avec, par ligne, le taux de like de la video = nbVues / nblikes
     # --------------------------------------------------------------------------------------
     def get_df_video_tauxlike(self) :
-        # Puisque veut faire des data frame, il va falloir que je reagrege les donnees des videos sous la forme d'une seule ligne comme dans un tableau Excel
         dsv_tauxlikes = []
 
         for ind in self.datavideos.index :
@@ -395,7 +358,6 @@ class mb_ds :
             viddisl = self.datavideos['dislikesVideo'][ind]
 
             # je fais des conversion de batard parce que j'ai un probleme de type
-            # J'qis verifier en affichant les erreurs que les chiffres etaient pourtant OK
             try :
                 s_vv = str(vidview)
                 s_vl = str(vidlikes)
@@ -409,7 +371,6 @@ class mb_ds :
 
             if i_vv != 0 :
                 tl = i_vl/i_vv
-            # print('Chaine : ' + str(vidname) + ' / vues : ' + str(vidview) + ' / likes : '+ str(vidlikes))
 
             try :
                 total_act = i_vl + i_vd
@@ -425,9 +386,10 @@ class mb_ds :
 
         return df_vid
 
-    # ------------------------------------------------------------------------------------------------------------------------
-    # Deduit une part suppose de trafic permis par la plateforme pour evaluer la part de vues propulsees par les organismes tiers
-    # ------------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------------------------
+    # Deduit une part supposée de trafic permis par la plateforme pour evaluer la part de vues apportées par les chaînes qui postent
+    # N.B : Cette fonction n'est pas utilisée dans le NoteBook public
+    # -------------------------------------------------------------------------------------------------------------------------------------
     # coef en parametre 
     def proj_delta_yt_algo(self, secteur = '', isnot = False, datemin = datetime.datetime(1970, 1, 1, 0, 0, 0), datemax = datetime.datetime(2100, 1, 1, 0, 0, 0), coefminvue = 0.25, minvue = 5000, coefvue = 0.5, moyvue = 50000, coefmaxvue = 0.6) :
         # Initialisation dataframe
@@ -444,14 +406,6 @@ class mb_ds :
         dctp = dctp[dctp['dateVideo'] < datemax]
 
 
-        # for ind in dctp.index :
-        #     if dctp['vuesVideo'][ind] < minvue :
-        #         og_trafic = (1 - coefminvue)*dctp['vuesVideo'][ind]
-        #     elif dctp['vuesVideo'][ind] < moyvue :
-        #         og_trafic = (1 - coefvue)*dctp['vuesVideo'][ind]
-        #     else :
-        #         og_trafic = (1 - coefmaxvue)*dctp['vuesVideo'][ind]
-        #     list_proj.append(og_trafic)
         for i, row in dctp.iterrows():
             if row['vuesVideo'] < minvue :
                  og_trafic = (1 - coefminvue)*row['vuesVideo']
@@ -467,9 +421,10 @@ class mb_ds :
         return sumv
 
     # ---------------------------------------------------------------------------------------------------
-    # Simule un effet tunnel en imaginant qu'une vue a 'x'% de chance de provoquer une vue additionnelle
+    # Simule un effet rebond en imaginant qu'une vue a 'x'% de chance de provoquer une vue additionnelle
+    # N.B : Cette fonction n'est pas utilisée dans le NoteBook public
     # ---------------------------------------------------------------------------------------------------
-    # coef en parametre 
+    # Je pense que ça pourrait être grandement optimisé 
     def proj_effet_tunnel(self, nbtirages=10, nbchance=1, nbvue=0) :
         if nbvue == 0 :
             print('Please, set view')
@@ -487,9 +442,6 @@ class mb_ds :
             print("don't be ridiculous")
         
         return newnbvue
-
-
-    # Return channel with no videos in the timespan
 
 
     # Return oldest video of channel
@@ -515,7 +467,9 @@ class mb_ds :
 
 
     # ---------------------------------------------------------------------------------------------------
-    # Retourne les tops vues pour une duree
+    # Retourne les tops vues pour une durée précisée
+    # Permet de déterminer des niches par secteur
+    # N.B : Cette fonction n'est pas utilisée dans le NoteBook public
     # ---------------------------------------------------------------------------------------------------
     # coef en parametre 
     def vid_duree_meanview(self, secteur='', channel='', structure='', dureemin=pd.Timedelta('0 days 00:00:00'), dureemax=pd.to_timedelta('3 days 00:00:00'), wo_struct = '', top=0, isnot=False) :
@@ -557,6 +511,7 @@ class mb_ds :
 
     # ---------------------------------------------------------------------------------------------------
     # Retourne les tops vues pour une duree
+    # Je ne sais plus à quoi sert cette fonction, elle ressemble drôlement à celle du dessus.
     # ---------------------------------------------------------------------------------------------------
     # coef en parametre 
     def df_vid_duree(self, secteur='', channel='', structure='', dureemin=pd.Timedelta('0 days 00:00:00'), dureemax=pd.to_timedelta('3 days 00:00:00'), wo_struct = '', isnot=False) :
